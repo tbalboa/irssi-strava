@@ -47,7 +47,7 @@ proc ::strava::main {} {
 
 		set ::strava::club_activity_id [::strava::get_highest_id $club_activities]
 	} else {
-		putlog "strava club error"
+		irssi_print "strava club error"
 	}
 
 	after [::tcl::mathop::* $::strava::announce::frequency 1000] ::strava::main
@@ -56,7 +56,7 @@ proc ::strava::main {} {
 proc ::strava::show {club_activities} {
 	foreach activity $club_activities {
 		if {[catch {dict size $activity} errno]} {
-			putlog "strava activity error: $errno"
+			irssi_print "strava activity error: $errno"
 			continue
 		}
 
@@ -100,7 +100,7 @@ proc ::strava::convert {type meters} {
 	set converted [::tcl::mathop::/ $meters 1000.0]
 
 	if {[string match $type "kmh"]} {
-		set converted [::tcl::mathop::* 3600.0]
+		set converted [::tcl::mathop::* $converted 3600.0]
 	}
 
 	return [format "%.1f" $converted]
