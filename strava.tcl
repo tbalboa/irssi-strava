@@ -170,14 +170,21 @@ proc ::strava::show {club_activities} {
 		irssi_print "strava: show: no announce server/channel set!"
 		return
 	}
+	# the keys in the activity we will always use.
+	set keys [list id distance moving_time total_elevation_gain average_speed \
+		athlete]
 	foreach activity $club_activities {
 		if {[catch {dict size $activity} errno]} {
 			irssi_print "strava activity error: $errno"
 			continue
 		}
+		foreach key $keys {
+			if {![dict exists $activity $key]} {
+				irssi_print "show: activity missing key $ke"
+				return
+			}
+		}
 
-		# TODO: check each key we want in the dict is there - it's an error to get
-		#   one and it not be present.
 		set id [dict get $activity "id"]
 		if {$::strava::club_activity_id >= $id} {
 			continue
@@ -187,10 +194,20 @@ proc ::strava::show {club_activities} {
 		set moving_time [::strava::duration [dict get $activity "moving_time"]]
 		set climb [::tcl::mathfunc::int [dict get $activity "total_elevation_gain"]]
 		set avg_speed [::strava::convert "kmh" [dict get $activity "average_speed"]]
-		set name [dict get $activity "athlete" "firstname"]
-
-		#set timestamp [dict get $activity "start_date_local"]
-		#set unix [clock scan $timestamp -format "%Y-%m-%dT%H:%M:%SZ"]
+		set athlete [dict get $activity athlete]
+		if {[catch {dict size $athlete} err]} {
+			irssi_print "show: athlete dict is invalid!"
+			return
+		}
+		if {![dict exists $athlete firstname]} {
+			irssi_print "show: athlete dict is missing firstname!"
+			return
+		}
+		set name [dict get $athlete firstname]
+		if {[expr [string length $name] == 0]} {
+			irssi_print "show: athlete firstname is blank!"
+			return
+		}
 
 		set output "\00307(strava)\017 ${name}: \002Distance:\002 ${distance}km \002Speed:\002 ${avg_speed}km/h \002Moving Time:\002 ${moving_time} \002\u2191\002${climb}m"
 
@@ -204,9 +221,13 @@ proc ::strava::show {club_activities} {
 			append output " ${cadence}rpm"
 		}
 
-		if {[dict exists $activity "average_heartrate"] && [dict exists $activity "max_heartrate"]} {
-			set avg_heartrate [::tcl::mathfunc::int [dict get $activity "average_heartrate"]]
-			set max_heartrate [::tcl::mathfunc::int [dict get $activity "max_heartrate"]]
+		if {[dict exists $activity "average_heartrate"] && \
+			[dict exists $activity "max_heartrate"]} \
+		{
+			set avg_heartrate [::tcl::mathfunc::int [dict get $activity \
+				"average_heartrate"]]
+			set max_heartrate [::tcl::mathfunc::int [dict get $activity \
+				"max_heartrate"]]
 			append output " ${avg_heartrate}\00304\u2665\017${max_heartrate}"
 		}
 
