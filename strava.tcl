@@ -51,10 +51,12 @@ namespace eval ::strava {
 	# this is an internal counter to track the highest activity seen.
 	variable club_activity_id 0
 
-	# cache leaderboard for 1 hour.
-	# TODO: caching feature is incomplete.
+	# we cache leaderboard activities for this many seconds.
 	variable leaderboard_cache_length 3600
-	variable leaderboard_cache_time 0
+	# cached_time records the unixtime of when the leaderboard cache was built.
+	variable leaderboard_cached_time 0
+	# a list of activities - cached for leaderboard use.
+	variable leaderboard_activities [list]
 
 	# how many days back to generate a leaderboard for.
 	variable leaderboard_days 14
@@ -496,6 +498,8 @@ proc ::strava::_leaderboard_cb {server chan activities page request_count token}
 	# point).
 	if {[expr [llength $new_activities] < $::strava::per_page]} {
 		irssi_print "_leaderboard_cb: hit end of activities"
+		set ::strava::leaderboard_cached_time [clock seconds]
+		set ::strava::leaderboard_activities $activities
 		::strava::leaderboard_output $server $chan $activities
 		return
 	}
@@ -504,6 +508,8 @@ proc ::strava::_leaderboard_cb {server chan activities page request_count token}
 	foreach activity $activities {
 		if {![::strava::activity_is_in_leaderboard $activity]} {
 			irssi_print "_leaderboard_cb: found activity that is old enough, done!"
+			set ::strava::leaderboard_cached_time [clock seconds]
+			set ::strava::leaderboard_activities $activities
 			::strava::leaderboard_output $server $chan $activities
 			return
 		}
@@ -512,6 +518,8 @@ proc ::strava::_leaderboard_cb {server chan activities page request_count token}
 	# requests already.
 	if {[expr $request_count >= $::strava::leaderboard_max_requests]} {
 		irssi_print "_leaderboard_cb: max API request count hit"
+		set ::strava::leaderboard_cached_time [clock seconds]
+		set ::strava::leaderboard_activities $activities
 		::strava::leaderboard_output $server $chan $activities
 		return
 	}
@@ -598,6 +606,14 @@ proc ::strava::leaderboard_api_request {server chan activities page request_coun
 # returns nothing.
 proc ::strava::leaderboard {server nick uhost chan argv} {
 	if {![str_in_settings_str "strava_enabled_channels" $chan]} {
+		return
+	}
+	# may have cached results for the leaderboard.
+	if {[expr [clock seconds] < $::strava::leaderboard_cached_time \
+		+ $::strava::leaderboard_cache_length]} \
+	{
+		irssi_print "leaderboard: using leaderboard cache"
+		::strava::leaderboard_output $server $chan $::strava::leaderboard_activities
 		return
 	}
 	set activities [list]
