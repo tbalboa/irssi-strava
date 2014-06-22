@@ -51,10 +51,6 @@ namespace eval ::strava {
 	variable leaderboard_cache_length 3600
 	variable leaderboard_cache_time 0
 
-	# debug mode. currently only controls whether we will use a cached
-	# json file instead of requesting a new one.
-	variable debug 0
-
 	signal_add msg_pub !clubs ::strava::clubs
 }
 
@@ -264,12 +260,6 @@ proc ::strava::club_activities_cb {token} {
 #
 # returns nothing.
 proc ::strava::club_activities {} {
-	if {$::strava::debug == 1} {
-		set fid [open "json.txt" r]
-		set data [read $fid]
-		close $fid
-		return [::json::json2dict $data]
-	}
 	set headers [list "Authorization" "Bearer $::strava::oauth_token"]
 	set url [join [list $::strava::base_url "clubs" $::strava::club_id "activities"] "/"]
 	# set a useragent prior to every request. why? because many scripts set this
