@@ -42,6 +42,9 @@ namespace eval ::strava {
 	# http useragent.
 	variable useragent "Tcl http client package 2.7"
 
+	# http timeout. in seconds.
+	variable http_timeout 5
+
 	# this is an internal counter to track the highest activity seen.
 	variable club_activity_id 0
 
@@ -292,7 +295,8 @@ proc ::strava::club_activities {} {
 	# and we could end up with an unknown useragent if we don't. this is
 	# apparently a limitation with global state in the http package.
 	::http::config -useragent $::strava::useragent
-	set http_token [::http::geturl $url -headers $headers -timeout 5000 \
+	set http_token [::http::geturl $url -headers $headers \
+		-timeout [expr $::strava::http_timeout * 1000] \
 		-command ::strava::club_activities_cb]
 }
 
