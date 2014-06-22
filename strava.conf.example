@@ -1,0 +1,24 @@
+#
+# configuration for strava.tcl.
+#
+
+# oauth_token is used to identify ourselves to the API.
+# this must be set. it is a string.
+oauth_token =
+
+# club_id is used to identify which club to request activities for.
+# this must be set. it is an integer.
+club_id =
+
+# announce_server sets what IRC server activity announcements go.
+# this must be set. it is a string and matches what your network is
+# called in irssi.
+announce_server =
+
+# announce_server sets what IRC channel activity announcements go.
+# this must be set. it is a string.
+announce_channel =
+
+# announce_frequency is the time between polls & activity announcements.
+# it is in seconds.
+announce_frequency = 300

@@ -16,15 +16,26 @@ namespace eval ::strava {
 		variable server ""
 		variable chan ""
 
+		# period in seconds between API polls.
 		variable frequency 300
 	}
 
+	# add a configuration option to set what channels are active for
+	# channel triggers.
 	settings_add_str "strava_enabled_channels" $::strava::announce::chan
 
+	# script version.
 	variable version 1.0
+
+	# path to a configuration file. if this does not exist then the
+	# defaults will be used. however the script is not very useful without
+	# having set up your configuration!
+	variable config_file [irssi_dir]/strava.conf
 
 	# you must set your token here.
 	variable oauth_token ""
+
+	# base url to send API requests to.
 	variable base_url "https://www.strava.com/api/v3"
 
 	# you must set this to your club.
@@ -35,13 +46,95 @@ namespace eval ::strava {
 
 	# this is an internal counter to track the highest activity seen.
 	variable club_activity_id 0
+
 	# cache leaderboard for 1 hour
 	variable leaderboard_cache_length 3600
 	variable leaderboard_cache_time 0
 
+	# debug mode. currently only controls whether we will use a cached
+	# json file instead of requesting a new one.
 	variable debug 0
 
 	signal_add msg_pub !clubs ::strava::clubs
+}
+
+# load a config from disk if one is present.
+#
+# the file format is:
+# <setting1>=<value1>
+# <setting2>=<value2>
+# ...
+#
+# there maybe "# comment" lines.
+#
+# returns nothing
+#
+# SIDE EFFECT: we will set various global settings here.
+proc ::strava::load_config {} {
+	if {![file exists $::strava::config_file]} {
+		irssi_print "strava: no configuration file to load! ($::strava::config_file)"
+		return
+	}
+	if {[catch {open $::strava::config_file r} fh]} {
+		irssi_print "strava: failed to open configuration file: $fh"
+		return
+	}
+	set content [read -nonewline $fh]
+	close $fh
+	set lines [split $content \n]
+	foreach line $lines {
+		set line [string trim $line]
+		if {[expr [string length $line] == 0]} {
+			continue
+		}
+		# skip "# comment" lines.
+		if {[string match [string index $line 0] #]} {
+			continue
+		}
+		# find '=' as delimiter between setting name and its value.
+		if {![regexp -- {^\s*(\S+)\s*=\s*(.*)$} $line -> setting value]} {
+			irssi_print "strava: warning: invalid configuration line: $line"
+			continue
+		}
+		set value [string trim $value]
+		if {[string equal $setting oauth_token]} {
+			if {[expr [string length $value] == 0]} {
+				irssi_print "strava: warning: blank oauth token"
+			}
+			set ::strava::oauth_token $value
+			continue
+		}
+		if {[string equal $setting club_id]} {
+			if {![string is integer -strict $value]} {
+				irssi_print "strava: warning: club_id is not an integer"
+				continue
+			}
+			set ::strava::club_id $value
+			continue
+		}
+		if {[string equal $setting announce_server]} {
+			if {[expr [string length $value] == 0]} {
+				irssi_print "strava: warning: blank announce server"
+			}
+			set ::strava::announce::server $value
+			continue
+		}
+		if {[string equal $setting announce_channel]} {
+			if {[expr [string length $value] == 0]} {
+				irssi_print "strava: warning: blank announce channel"
+			}
+			set ::strava::announce::chan $value
+			continue
+		}
+		if {[string equal $setting announce_frequency]} {
+			if {![string is integer -strict $value]} {
+				irssi_print "strava: warning: announce frequency is not an integer"
+				continue
+			}
+			set ::strava::announce::frequency $value
+			continue
+		}
+	}
 }
 
 # main loop where we continuously check for new activities and show them if
@@ -187,6 +280,6 @@ proc ::strava::club_activities {} {
 		-command ::strava::club_activities_cb]
 }
 
+::strava::load_config
 ::strava::main
-
 irssi_print "strava.tcl v $::strava::version loaded (c) tbalboa 2014"
