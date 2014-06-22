@@ -62,6 +62,9 @@ namespace eval ::strava {
 	# how many requests maximum to make when building a single leaderboard.
 	variable leaderboard_max_requests 2
 
+	# output this many in each leaderboard at most.
+	variable leaderboard_top_count 5
+
 	# add a configuration option to set what channels are active for
 	# channel triggers.
 	settings_add_str "strava_enabled_channels" $::strava::announce::chan
@@ -310,6 +313,9 @@ proc ::strava::activity_is_in_leaderboard {activity} {
 proc ::strava::leaderboard_output {server chan activities} {
 	# pull out the totals for each athlete.
 	set elevations [dict create]
+	set distances [dict create]
+	set speeds [dict create]
+	set moving_times [dict create]
 	foreach activity $activities {
 		# NOTE: we assume the dict is valid at this point!
 		if {![::strava::activity_is_in_leaderboard $activity]} {
@@ -331,6 +337,7 @@ proc ::strava::leaderboard_output {server chan activities} {
 			irssi_print "leaderboard_output: athlete name is blank!"
 			return
 		}
+
 		# elevation.
 		if {![dict exists $elevations $name]} {
 			dict set elevations $name 0
@@ -339,28 +346,115 @@ proc ::strava::leaderboard_output {server chan activities} {
 			irssi_print "leaderboard_output: total_elevation_gain is missing!"
 			return
 		}
-		set climb [::tcl::mathfunc::int [dict get $activity total_elevation_gain]]
-		dict incr elevations $name $climb
+		dict set elevations $name [expr [dict get $elevations $name] \
+			+ [dict get $activity total_elevation_gain]]
+
+		# distance.
+		if {![dict exists $distances $name]} {
+			dict set distances $name 0
+		}
+		if {![dict exists $activity distance]} {
+			irssi_print "leaderboard_output: distance missing!"
+			return
+		}
+		dict set distances $name [expr [dict get $distances $name] \
+			+ [dict get $activity distance]]
+
+		# speed.
+		if {![dict exists $speeds $name]} {
+			dict set speeds $name 0
+		}
+		if {![dict exists $activity average_speed]} {
+			irssi_print "leaderboard_output: average_speed missing!"
+			return
+		}
+		if {[expr [dict get $activity average_speed] > [dict get $speeds $name]]} {
+			dict set speeds $name [dict get $activity average_speed]
+		}
+
+		# moving time.
+		if {![dict exists $moving_times $name]} {
+			dict set moving_times $name 0
+		}
+		if {![dict exists $activity moving_time]} {
+			irssi_print "leaderboard_output: moving_time missing!"
+			return
+		}
+		dict set moving_times $name [expr [dict get $moving_times $name] \
+			+ [dict get $activity moving_time]]
 	}
-	# sort them. I convert to a list so we can use lsort.
-	set elevations_list [list]
+	if {[expr [dict size $elevations] == 0]} {
+		putchan $server $chan "No athletes!"
+	}
+
+	# sort everything. I build lists so we can use lsort.
+	set athlete_elevations [list]
+	set athlete_distances [list]
+	set athlete_speeds [list]
+	set athlete_moving_times [list]
 	foreach athlete [dict keys $elevations] {
-		lappend elevations_list [list $athlete [dict get $elevations $athlete]]
+		lappend athlete_elevations [list $athlete [dict get $elevations $athlete]]
+		lappend athlete_distances [list $athlete [dict get $distances $athlete]]
+		lappend athlete_speeds [list $athlete [dict get $speeds $athlete]]
+		lappend athlete_moving_times [list $athlete [dict get $moving_times \
+			$athlete]]
 	}
-	set elevs_sorted [lsort -integer -decreasing -index 1 $elevations_list]
-	putchan $server $chan "Leaderboard (elevation) for the past $::strava::leaderboard_days days:"
+	set athlete_elevations_sorted [lsort -real -decreasing -index 1 \
+		$athlete_elevations]
+	set athlete_distances_sorted [lsort -real -decreasing -index 1 \
+		$athlete_distances]
+	set athlete_speeds_sorted [lsort -real -decreasing -index 1 \
+		$athlete_speeds]
+	set athlete_moving_times_sorted [lsort -real -decreasing -index 1 \
+		$athlete_moving_times]
+
+	putchan $server $chan "Elevation leaderboard for the past $::strava::leaderboard_days days:"
 	set i 0
-	foreach elev $elevs_sorted {
-		lassign $elev athlete elevation
+	foreach athlete_elevation $athlete_elevations_sorted {
+		lassign $athlete_elevation athlete elevation
 		incr i
-		if {[expr $i > 10]} {
+		if {[expr $i > $::strava::leaderboard_top_count]} {
 			break
 		}
+		set elevation [::tcl::mathfunc::int $elevation]
 		set output "$i. $athlete @ ${elevation}m"
 		putchan $server $chan $output
 	}
-	if {[expr [llength $elevs_sorted] == 0]} {
-		putchan $server $chan "No athletes!"
+	putchan $server $chan "Distance leaderboard for the past $::strava::leaderboard_days days:"
+	set i 0
+	foreach athlete_distance $athlete_distances_sorted {
+		lassign $athlete_distance athlete distance
+		incr i
+		if {[expr $i > $::strava::leaderboard_top_count]} {
+			break
+		}
+		set distance [::strava::convert km $distance]
+		set output "$i. $athlete @ ${distance}km"
+		putchan $server $chan $output
+	}
+	putchan $server $chan "Average speed leaderboard for the past $::strava::leaderboard_days days:"
+	set i 0
+	foreach athlete_speed $athlete_speeds_sorted {
+		lassign $athlete_speed athlete speed
+		incr i
+		if {[expr $i > $::strava::leaderboard_top_count]} {
+			break
+		}
+		set speed [::strava::convert kmh $speed]
+		set output "$i. $athlete @ ${speed}km/h"
+		putchan $server $chan $output
+	}
+	putchan $server $chan "Moving time leaderboard for the past $::strava::leaderboard_days days:"
+	set i 0
+	foreach athlete_moving_time $athlete_moving_times_sorted {
+		lassign $athlete_moving_time athlete moving_time
+		incr i
+		if {[expr $i > $::strava::leaderboard_top_count]} {
+			break
+		}
+		set moving_time [::strava::duration $moving_time]
+		set output "$i. $athlete @ ${moving_time}"
+		putchan $server $chan $output
 	}
 }
 
