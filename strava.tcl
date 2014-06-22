@@ -137,10 +137,22 @@ proc ::strava::load_config {} {
 # necessary.
 proc ::strava::main {} {
 	::strava::club_activities
+	if {![string is integer -strict $::strava::announce::frequency] || \
+		[expr $::strava::announce::frequency <= 0]} \
+	{
+		irssi_print "strava: main: invalid announcement frequency!"
+		return
+	}
 	after [::tcl::mathop::* $::strava::announce::frequency 1000] ::strava::main
 }
 
 proc ::strava::show {club_activities} {
+	if {[expr [string length $::strava::announce::server] == 0] || \
+		[expr [string length $::strava::announce::chan] == 0]} \
+	{
+		irssi_print "strava: show: no announce server/channel set!"
+		return
+	}
 	foreach activity $club_activities {
 		if {[catch {dict size $activity} errno]} {
 			irssi_print "strava activity error: $errno"
@@ -260,6 +272,16 @@ proc ::strava::club_activities_cb {token} {
 #
 # returns nothing.
 proc ::strava::club_activities {} {
+	if {[expr [string length $::strava::oauth_token] == 0]} {
+		irssi_print "strava: club_activities: cannot perform API request without a token!"
+		return
+	}
+	if {![string is integer -strict $::strava::club_id] || \
+		[expr $::strava::club_id <= 0]} \
+	{
+		irssi_print "strava: club_activities: you must set a club id"
+		return
+	}
 	set headers [list "Authorization" "Bearer $::strava::oauth_token"]
 	set url [join [list $::strava::base_url "clubs" $::strava::club_id "activities"] "/"]
 	# set a useragent prior to every request. why? because many scripts set this
