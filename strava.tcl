@@ -42,8 +42,6 @@ namespace eval ::strava {
 	variable debug 0
 
 	signal_add msg_pub !clubs ::strava::clubs
-#	signal_add msg_pub !strava ::strava::main
-#	signal_add msg_pub .strava ::strava::main
 }
 
 # main loop where we continuously check for new activities and show them if
