@@ -162,6 +162,7 @@ proc ::strava::main {} {
 	after [::tcl::mathop::* $::strava::announce::frequency 1000] ::strava::main
 }
 
+# output activities we have not seen yet to the announce channel.
 proc ::strava::show {club_activities} {
 	if {[expr [string length $::strava::announce::server] == 0] || \
 		[expr [string length $::strava::announce::chan] == 0]} \
@@ -508,14 +509,7 @@ proc ::strava::club_activities_cb {token} {
 	}
 	set data [::http::data $token]
 	::http::cleanup $token
-
 	set activities [::json::json2dict $data]
-	# check that we have a valid dict.
-	# TODO: we don't have a dict here, do we? we should have a list.
-	if {[catch {dict size $activities}]} {
-		irssi_print "club_activities_cb: HTTP response is not valid json"
-		return
-	}
 
 	# we only show activities if we have seen an activity already because
 	# otherwise on startup we'll spit out every activity.
