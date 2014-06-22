@@ -30,6 +30,9 @@ namespace eval ::strava {
 	# you must set this to your club.
 	variable club_id 0
 
+	# http useragent.
+	variable useragent "Tcl http client package 2.7"
+
 	# this is an internal counter to track the highest activity seen.
 	variable club_activity_id 0
 	# cache leaderboard for 1 hour
@@ -178,6 +181,10 @@ proc ::strava::club_activities {} {
 	}
 	set headers [list "Authorization" "Bearer $::strava::oauth_token"]
 	set url [join [list $::strava::base_url "clubs" $::strava::club_id "activities"] "/"]
+	# set a useragent prior to every request. why? because many scripts set this
+	# and we could end up with an unknown useragent if we don't. this is
+	# apparently a limitation with global state in the http package.
+	::http::config -useragent $::strava::useragent
 	set http_token [::http::geturl $url -headers $headers -timeout 5000 \
 		-command ::strava::club_activities_cb]
 }
