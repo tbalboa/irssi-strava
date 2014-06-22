@@ -492,18 +492,12 @@ proc ::strava::leaderboard {server nick uhost chan argv} {
 		$request_count
 }
 
-# this proc is a callback from ::http::geturl called asynchronously
-# in ::strava::club_activities.
+# callback for a club activities poll.
 #
-# we parse the response and output the activities, if any.
-#
-# parameters:
-# token: the ::http request token
-#
-# returns nothing
-proc ::strava::club_activities_cb {token} {
+# see club_activities_cb
+proc ::strava::_club_activities_cb {token} {
 	if {![string match [::http::status $token] "ok"]} {
-		irssi_print "club_activities_cb: HTTP request problem"
+		irssi_print "_club_activities_cb: HTTP request problem"
 		::http::cleanup $token
 		return
 	}
@@ -519,6 +513,23 @@ proc ::strava::club_activities_cb {token} {
 	# store highest we've seen now so we don't notify about the same activities
 	# next time.
 	set ::strava::club_activity_id [::strava::get_highest_id $activities]
+}
+
+# this proc is a callback from ::http::geturl called asynchronously
+# in ::strava::club_activities.
+#
+# we parse the response and output the activities, if any.
+#
+# parameters:
+# token: the ::http request token
+#
+# returns nothing
+proc ::strava::club_activities_cb {token} {
+	# wrap the main logic so we can catch errors. otherwise if an error occurs
+	# due to this being an asynchronous request we will not see any error.
+	if {[catch {::strava::_club_activities_cb $token} err]} {
+		irssi_print "club_activities_cb: error encounted: $err"
+	}
 }
 
 # start an http request to the strava API.
