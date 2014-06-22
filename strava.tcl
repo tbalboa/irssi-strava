@@ -66,9 +66,6 @@ namespace eval ::strava {
 	# channel triggers.
 	settings_add_str "strava_enabled_channels" $::strava::announce::chan
 
-	# add a channel trigger. TODO: this feature is incomplete.
-	signal_add msg_pub !clubs ::strava::clubs
-
 	# add a channel for retrieving leader board for the club.
 	signal_add msg_pub .leaderboard ::strava::leaderboard
 }
@@ -245,12 +242,6 @@ proc ::strava::get_highest_id {dictionary} {
 	}
 
 	return $id
-}
-
-proc ::strava::clubs {server nick uhost chan argv} {
-	if {![str_in_settings_str "strava_enabled_channels" $chan]} {
-		return
-	}
 }
 
 # determine if an activity falls in our leaderboard time range.
