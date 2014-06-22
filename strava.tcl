@@ -572,6 +572,12 @@ proc ::strava::club_activities {} {
 		return
 	}
 	set url [join [list $::strava::base_url "clubs" $::strava::club_id "activities"] "/"]
+	set page 1
+	# only get a small number at once because we will be polling frequently
+	# usually.
+	set per_page 5
+	set params [::http::formatQuery page $page per_page $per_page]
+	append url "?$params"
 	::strava::api_request $url ::strava::club_activities_cb
 }
 
