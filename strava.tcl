@@ -12,6 +12,7 @@ package require tls
 
 namespace eval ::strava {
 	namespace eval announce {
+		# set server and channel for where to announce activities.
 		variable server ""
 		variable chan ""
 
@@ -22,10 +23,14 @@ namespace eval ::strava {
 
 	variable version 1.0
 
+	# you must set your token here.
 	variable oauth_token ""
 	variable base_url "https://www.strava.com/api/v3"
 
+	# you must set this to your club.
 	variable club_id 0
+
+	# this is an internal counter to track the highest activity seen.
 	variable club_activity_id 0
 	# cache leaderboard for 1 hour
 	variable leaderboard_cache_length 3600
@@ -38,18 +43,10 @@ namespace eval ::strava {
 #	signal_add msg_pub .strava ::strava::main
 }
 
+# main loop where we continuously check for new activities and show them if
+# necessary.
 proc ::strava::main {} {
-	set club_activities [::strava::club_activities]
-	if {![catch {dict size $club_activities}]} {
-		if {$::strava::club_activity_id != 0} {
-			::strava::show $club_activities
-		}
-
-		set ::strava::club_activity_id [::strava::get_highest_id $club_activities]
-	} else {
-		irssi_print "strava club error"
-	}
-
+	::strava::club_activities
 	after [::tcl::mathop::* $::strava::announce::frequency 1000] ::strava::main
 }
 
@@ -131,9 +128,47 @@ proc ::strava::clubs {server nick uhost chan argv} {
 	if {![str_in_settings_str "strava_enabled_channels" $chan]} {
 		return
 	}
-
 }
 
+# this proc is a callback from ::http::geturl called asynchronously
+# in ::strava::club_activities.
+#
+# we parse the response and output the activities, if any.
+#
+# parameters:
+# token: the ::http request token
+#
+# returns nothing
+proc ::strava::club_activities_cb {token} {
+	if {![string match [::http::status $token] "ok"]} {
+		irssi_print "club_activities_cb: HTTP request problem"
+		::http::cleanup $token
+		return
+	}
+	set data [::http::data $token]
+	::http::cleanup $token
+
+	set activities [::json::json2dict $data]
+	# check that we have a valid dict.
+	if {[catch {dict size $activities}]} {
+		irssi_print "club_activities_cb: HTTP request is not valid json"
+		return
+	}
+
+	# we only show activities if we have seen an activity already because
+	# otherwise on startup we'll spit out every activity.
+	if {$::strava::club_activity_id != 0} {
+		::strava::show $activities
+	}
+	# store highest we've seen now so we don't notify about the same activities
+	# next time.
+	set ::strava::club_activity_id [::strava::get_highest_id $activities]
+}
+
+# start an http request to retrieve and output club activities.
+# this is asynchronous so we don't block.
+#
+# returns nothing.
 proc ::strava::club_activities {} {
 	if {$::strava::debug == 1} {
 		set fid [open "json.txt" r]
@@ -141,17 +176,10 @@ proc ::strava::club_activities {} {
 		close $fid
 		return [::json::json2dict $data]
 	}
-
 	set headers [list "Authorization" "Bearer $::strava::oauth_token"]
 	set url [join [list $::strava::base_url "clubs" $::strava::club_id "activities"] "/"]
-
-	set http_token [::http::geturl $url -headers $headers -timeout 5000]
-
-	if {[string match [::http::status $http_token] "ok"]} {
-		return [::json::json2dict [::http::data $http_token]]
-	}
-
-	return
+	set http_token [::http::geturl $url -headers $headers -timeout 5000 \
+		-command ::strava::club_activities_cb]
 }
 
 ::strava::main
