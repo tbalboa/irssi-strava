@@ -13,33 +13,31 @@ package require tls
 namespace eval ::strava {
 	namespace eval announce {
 		# set server and channel for where to announce activities.
+		# you can set these in the config file.
 		variable server ""
 		variable chan ""
 
 		# period in seconds between API polls.
+		# you can set this in the config file.
 		variable frequency 300
 	}
 
-	# add a configuration option to set what channels are active for
-	# channel triggers.
-	settings_add_str "strava_enabled_channels" $::strava::announce::chan
+	# oauth token used in API requests. you can set this in the config file.
+	variable oauth_token ""
 
-	# script version.
-	variable version 1.0
+	# club to retrieve activities for. you can set this in the config file.
+	variable club_id 0
 
 	# path to a configuration file. if this does not exist then the
 	# defaults will be used. however the script is not very useful without
 	# having set up your configuration!
 	variable config_file [irssi_dir]/strava.conf
 
-	# you must set your token here.
-	variable oauth_token ""
+	# script version.
+	variable version 1.0
 
 	# base url to send API requests to.
 	variable base_url "https://www.strava.com/api/v3"
-
-	# you must set this to your club.
-	variable club_id 0
 
 	# http useragent.
 	variable useragent "Tcl http client package 2.7"
@@ -47,10 +45,16 @@ namespace eval ::strava {
 	# this is an internal counter to track the highest activity seen.
 	variable club_activity_id 0
 
-	# cache leaderboard for 1 hour
+	# cache leaderboard for 1 hour.
+	# TODO: this feature is incomplete.
 	variable leaderboard_cache_length 3600
 	variable leaderboard_cache_time 0
 
+	# add a configuration option to set what channels are active for
+	# channel triggers.
+	settings_add_str "strava_enabled_channels" $::strava::announce::chan
+
+	# add a channel trigger. TODO: this feature is incomplete.
 	signal_add msg_pub !clubs ::strava::clubs
 }
 
