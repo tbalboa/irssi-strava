@@ -43,7 +43,7 @@ namespace eval ::strava {
 	variable useragent "Tcl http client package 2.7"
 
 	# http timeout. in seconds.
-	variable http_timeout 5
+	variable http_timeout 2
 
 	# number of pages of activities to request at once.
 	variable per_page 30
@@ -627,8 +627,10 @@ proc ::strava::leaderboard {server nick uhost chan argv} {
 #
 # see club_activities_cb
 proc ::strava::_club_activities_cb {token} {
-	if {![string match [::http::status $token] "ok"]} {
-		irssi_print "_club_activities_cb: HTTP request problem"
+	set code [::http::code $token]
+	set status [::http::status $token]
+	if {![string match $status "ok"]} {
+		irssi_print "_club_activities_cb: HTTP request problem: $status: $code"
 		::http::cleanup $token
 		return
 	}
@@ -659,7 +661,7 @@ proc ::strava::club_activities_cb {token} {
 	# wrap the main logic so we can catch errors. otherwise if an error occurs
 	# due to this being an asynchronous request we will not see any error.
 	if {[catch {::strava::_club_activities_cb $token} err]} {
-		irssi_print "club_activities_cb: error encounted: $err"
+		irssi_print "club_activities_cb: error encountered: $err"
 	}
 }
 
