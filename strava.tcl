@@ -157,14 +157,18 @@ proc ::strava::load_config {} {
 # main loop where we continuously check for new activities and show them if
 # necessary.
 proc ::strava::main {} {
-	::strava::club_activities
+	# ensure we always will call ourselves again by calling after
+	# immediately. this prevents things like if there being an error that
+	# our loop will stop forever.
+	after [::tcl::mathop::* $::strava::announce::frequency 1000] ::strava::main
+
 	if {![string is integer -strict $::strava::announce::frequency] || \
 		[expr $::strava::announce::frequency <= 0]} \
 	{
 		irssi_print "strava: main: invalid announcement frequency!"
 		return
 	}
-	after [::tcl::mathop::* $::strava::announce::frequency 1000] ::strava::main
+	::strava::club_activities
 }
 
 # output activities we have not seen yet to the announce channel.
