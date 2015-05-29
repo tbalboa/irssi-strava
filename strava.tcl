@@ -8,8 +8,6 @@ package require json
 package require http
 package require tls
 
-::http::register https 443 ::tls::socket
-
 namespace eval ::strava {
 	namespace eval announce {
 		# set server and channel for where to announce activities.
@@ -688,6 +686,7 @@ proc ::strava::api_request {url cb} {
 	# and we could end up with an unknown useragent if we don't. this is
 	# apparently a limitation with global state in the http package.
 	::http::config -useragent $::strava::useragent
+	::http::register https 443 [list ::tls::socket -ssl2 0 -ssl3 0 -tls1 1]
 	set http_token [::http::geturl $url -headers $headers \
 		-timeout [expr $::strava::http_timeout * 1000] \
 		-command $cb]
