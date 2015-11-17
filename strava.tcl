@@ -687,9 +687,13 @@ proc ::strava::api_request {url cb} {
 	# apparently a limitation with global state in the http package.
 	::http::config -useragent $::strava::useragent
 	::http::register https 443 [list ::tls::socket -ssl2 0 -ssl3 0 -tls1 1]
-	set http_token [::http::geturl $url -headers $headers \
+	set http_token [::http::geturl \
+		$url \
+		-headers $headers \
 		-timeout [expr $::strava::http_timeout * 1000] \
-		-command $cb]
+	]
+
+	{*}$cb $http_token
 }
 
 # start an http request to retrieve and output club activities.
