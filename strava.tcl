@@ -18,6 +18,9 @@ namespace eval ::strava {
 		# period in seconds between API polls.
 		# you can set this in the config file.
 		variable frequency 300
+
+		# track when we last polled the api (unixtime)
+		variable last_poll_time 0
 	}
 
 	# oauth token used in API requests. you can set this in the config file.
@@ -71,6 +74,8 @@ namespace eval ::strava {
 
 	# add a channel for retrieving leader board for the club.
 	signal_add msg_pub .leaderboard ::strava::leaderboard
+
+	signal_add msg_pub * ::strava::msg_pub
 }
 
 # load a config from disk if one is present.
@@ -158,7 +163,10 @@ proc ::strava::main {} {
 	# ensure we always will call ourselves again by calling after
 	# immediately. this prevents things like if there being an error that
 	# our loop will stop forever.
-	after [::tcl::mathop::* $::strava::announce::frequency 1000] ::strava::main
+	#after [::tcl::mathop::* $::strava::announce::frequency 1000] ::strava::main
+	#
+	# I'm going to try not using event due to issues with ssl race conditions.
+	# let's try polling when we see a message if we haven't polled in a while.
 
 	if {![string is integer -strict $::strava::announce::frequency] || \
 		[expr $::strava::announce::frequency <= 0]} \
@@ -166,7 +174,30 @@ proc ::strava::main {} {
 		irssi_print "strava: main: invalid announcement frequency!"
 		return
 	}
+
 	::strava::club_activities
+}
+
+# the idea here is we will block and run the http request through and avoid
+# race conditions. we'll do that by running when we see a message (sometimes).
+#
+# TODO: it would be nice if we didn't have to wait on messages but could
+#   use something that happens all the time. like server pings. but there is
+#   no signal implemented we can listen on for that right now.
+proc ::strava::msg_pub {server nick uhost chan argv} {
+	# if we haven't polled in a while then do so
+
+	# NOTE: this doesn't care what channel we saw a message in clearly
+
+	set next_poll_time [expr $::strava::announce::last_poll_time + \
+		$::strava::announce::frequency]
+	if {[clock seconds] < $next_poll_time} {
+		return
+	}
+
+	set ::strava::announce::last_poll_time [clock seconds]
+
+	::strava::main
 }
 
 # output activities we have not seen yet to the announce channel.
