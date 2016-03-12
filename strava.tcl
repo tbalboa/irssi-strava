@@ -11,9 +11,9 @@ package require tls
 namespace eval ::strava {
 	namespace eval announce {
 		# set server and channel for where to announce activities.
-		# you can set these in the config file.
-		variable server ""
-		variable chan ""
+		# set these in the config file.
+		variable server []
+		variable chan []
 
 		# period in seconds between API polls.
 		# you can set this in the config file.
@@ -70,7 +70,7 @@ namespace eval ::strava {
 
 	# add a configuration option to set what channels are active for
 	# channel triggers.
-	settings_add_str "strava_enabled_channels" $::strava::announce::chan
+	settings_add_str "strava_enabled_channels" ""
 
 	# add a channel for retrieving leader board for the club.
 	signal_add msg_pub .leaderboard ::strava::leaderboard
@@ -102,28 +102,35 @@ proc ::strava::load_config {} {
 	set content [read -nonewline $fh]
 	close $fh
 	set lines [split $content \n]
+
 	foreach line $lines {
 		set line [string trim $line]
+
 		if {[expr [string length $line] == 0]} {
 			continue
 		}
+
 		# skip "# comment" lines.
 		if {[string match [string index $line 0] #]} {
 			continue
 		}
+
 		# find '=' as delimiter between setting name and its value.
 		if {![regexp -- {^\s*(\S+)\s*=\s*(.*)$} $line -> setting value]} {
 			irssi_print "strava: warning: invalid configuration line: $line"
 			continue
 		}
 		set value [string trim $value]
+
 		if {[string equal $setting oauth_token]} {
 			if {[expr [string length $value] == 0]} {
 				irssi_print "strava: warning: blank oauth token"
+				continue
 			}
 			set ::strava::oauth_token $value
 			continue
 		}
+
 		if {[string equal $setting club_id]} {
 			if {![string is integer -strict $value]} {
 				irssi_print "strava: warning: club_id is not an integer"
@@ -132,20 +139,25 @@ proc ::strava::load_config {} {
 			set ::strava::club_id $value
 			continue
 		}
+
 		if {[string equal $setting announce_server]} {
 			if {[expr [string length $value] == 0]} {
 				irssi_print "strava: warning: blank announce server"
+				continue
 			}
-			set ::strava::announce::server $value
+			set ::strava::announce::server [split $value ,]
 			continue
 		}
+
 		if {[string equal $setting announce_channel]} {
 			if {[expr [string length $value] == 0]} {
 				irssi_print "strava: warning: blank announce channel"
+				continue
 			}
-			set ::strava::announce::chan $value
+			set ::strava::announce::chan [split $value ,]
 			continue
 		}
+
 		if {[string equal $setting announce_frequency]} {
 			if {![string is integer -strict $value]} {
 				irssi_print "strava: warning: announce frequency is not an integer"
@@ -154,6 +166,10 @@ proc ::strava::load_config {} {
 			set ::strava::announce::frequency $value
 			continue
 		}
+	}
+
+	if {[llength $::strava::announce::server] != [llength $::strava::announce::chan]} {
+		irssi_print "strava: Warning: mismatched number of servers/channels"
 	}
 }
 
@@ -269,7 +285,11 @@ proc ::strava::show {club_activities} {
 			append output " ${avg_heartrate}\00304\u2665\017${max_heartrate}"
 		}
 
-		putchan $::strava::announce::server $::strava::announce::chan $output
+		for {set i 0} {$i < [llength $::strava::announce::server]} {incr i} {
+			set server [lindex $::strava::announce::server $i]
+			set chan [lindex $::strava::announce::chan $i]
+			putchan $server $chan $output
+		}
 	}
 }
 
