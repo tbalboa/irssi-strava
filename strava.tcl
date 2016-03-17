@@ -224,22 +224,30 @@ proc ::strava::show {club_activities} {
 		irssi_print "strava: show: no announce server/channel set!"
 		return
 	}
-	# the keys in the activity we will always use.
+
+	# List the keys in the activity we will always use.
+	# achievement_count: PR
 	set keys [list id distance moving_time total_elevation_gain average_speed \
-		athlete]
+		athlete achievement_count]
+
 	foreach activity $club_activities {
+		# Check the dict is sane
 		if {[catch {dict size $activity} errno]} {
-			irssi_print "strava activity error: $errno"
-			continue
+			irssi_print "strava: show: activity error: $errno"
+			return
 		}
+
 		foreach key $keys {
 			if {![dict exists $activity $key]} {
-				irssi_print "show: activity missing key $ke"
+				irssi_print "strava: show: activity missing key $key"
 				return
 			}
 		}
 
 		set id [dict get $activity "id"]
+
+		# If we have seen this activity before then do not show it again.
+		# Note this depends on the ids being always increasing and compareable.
 		if {$::strava::club_activity_id >= $id} {
 			continue
 		}
@@ -248,6 +256,7 @@ proc ::strava::show {club_activities} {
 		set moving_time [::strava::duration [dict get $activity "moving_time"]]
 		set climb [::tcl::mathfunc::int [dict get $activity "total_elevation_gain"]]
 		set avg_speed [::strava::convert "kmh" [dict get $activity "average_speed"]]
+
 		set athlete [dict get $activity athlete]
 		if {[catch {dict size $athlete} err]} {
 			irssi_print "show: athlete dict is invalid!"
@@ -262,6 +271,8 @@ proc ::strava::show {club_activities} {
 			irssi_print "show: athlete firstname is blank!"
 			return
 		}
+
+		set achievement_count [dict get $activity achievement_count]
 
 		set output "\00307(strava)\017 ${name}: \002Distance:\002 ${distance}km \002Speed:\002 ${avg_speed}km/h \002Moving Time:\002 ${moving_time} \002\u2191\002${climb}m"
 
@@ -285,6 +296,11 @@ proc ::strava::show {club_activities} {
 			append output " ${avg_heartrate}\00304\u2665\017${max_heartrate}"
 		}
 
+		if {$achievement_count > 0} {
+			append output " \u2605${achievement_count}"
+		}
+
+		# Output. Possibly to multiple channels.
 		for {set i 0} {$i < [llength $::strava::announce::server]} {incr i} {
 			set server [lindex $::strava::announce::server $i]
 			set chan [lindex $::strava::announce::chan $i]
@@ -770,4 +786,4 @@ proc ::strava::club_activities {} {
 
 ::strava::load_config
 ::strava::main
-irssi_print "strava.tcl v $::strava::version loaded (c) tbalboa 2014"
+irssi_print "strava.tcl v $::strava::version loaded (c) tbalboa 2016"
