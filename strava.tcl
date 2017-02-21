@@ -274,7 +274,13 @@ proc ::strava::show {club_activities} {
 		for {set i 0} {$i < [llength $::strava::announce::server]} {incr i} {
 			set server [lindex $::strava::announce::server $i]
 			set chan [lindex $::strava::announce::chan $i]
-			putchan $server $chan $output
+
+			# It is possible we have configured channels that we are not on for
+			# whatever reason. putchan will raise an error in that case. Log it and
+			# proceed with the next.
+			if {[catch {putchan $server $chan $output} err]} {
+				irssi_print "show: $err"
+			}
 		}
 	}
 }
