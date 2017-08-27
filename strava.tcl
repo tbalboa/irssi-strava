@@ -214,7 +214,7 @@ proc ::strava::show {club_activities} {
 			}
 		}
 
-		set id [dict get $activity "id"]
+		set id [dict get $activity id]
 
 		# If we have seen this activity before then do not show it again.
 		# Note this depends on the ids being always increasing and compareable.
@@ -269,6 +269,8 @@ proc ::strava::show {club_activities} {
 		if {$achievement_count > 0} {
 			append output " \u2605${achievement_count}"
 		}
+
+		append output " https://www.strava.com/activities/$id"
 
 		# Output. Possibly to multiple channels.
 		for {set i 0} {$i < [llength $::strava::announce::server]} {incr i} {
