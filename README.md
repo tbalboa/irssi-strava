@@ -18,7 +18,9 @@ You must set at least `oauth_token`, `club_id`, `announce_server`, and
 `announce_channel`.
 
 To get an `oauth_token`, see the [Strava API
-documentation](http://strava.github.io/api/#access).
+documentation](https://developers.strava.com/). Choose Create & Manage Your
+App. After you create an app, you'll see "Your Access Token". Use that for
+`oauth_token`.
 
 To know the `club_id` to use, go to the club's page. Hovering over several of
 the links will show a number such as `79240` as part of the links. This is the
