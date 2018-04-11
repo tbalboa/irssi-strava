@@ -786,4 +786,4 @@ proc ::strava::club_activities {} {
 
 ::strava::load_config
 ::strava::main
-irssi_print "strava.tcl v $::strava::version loaded (c) tbalboa 2016"
+irssi_print "strava.tcl v $::strava::version loaded (c) tbalboa 2018"
