@@ -234,15 +234,20 @@ proc ::strava::show {club_activities} {
 			irssi_print "show: athlete dict is invalid!"
 			return
 		}
-		if {![dict exists $athlete firstname]} {
-			irssi_print "show: athlete dict is missing firstname!"
-			return
-		}
-		set name [dict get $athlete firstname]
-		if {[expr [string length $name] == 0]} {
-			irssi_print "show: athlete firstname is blank!"
-			return
-		}
+
+		# TODO(horgh): firstname is not returned by the /athlete/activities
+		# endpoint. We should use a different endpoint to get the athlete's name,
+		# or put it in the config.
+		#if {![dict exists $athlete firstname]} {
+		#	irssi_print "show: athlete dict is missing firstname!"
+		#	return
+		#}
+		#set name [dict get $athlete firstname]
+		#if {[expr [string length $name] == 0]} {
+		#	irssi_print "show: athlete firstname is blank!"
+		#	return
+		#}
+		set name ""
 
 		set achievement_count [dict get $activity achievement_count]
 
@@ -766,13 +771,16 @@ proc ::strava::club_activities {} {
 		irssi_print "strava: api_request: you must set a club id"
 		return
 	}
-	set url [join [list $::strava::base_url "clubs" $::strava::club_id "activities"] "/"]
-	set page 1
-	# only get a small number at once because we will be polling frequently
-	# usually.
-	set per_page 5
-	set params [::http::formatQuery page $page per_page $per_page]
-	append url "?$params"
+
+	set url "https://www.strava.com/api/v3/athlete/activities?"
+
+	# TODO(horgh): We could use the after parameter to exclude already seen
+	# activities instead of relying on our id tracking.
+
+	append url [::http::formatQuery \
+		per_page 5 \
+	]
+
 	::strava::api_request $url ::strava::club_activities_cb
 }
 
