@@ -65,6 +65,8 @@ namespace eval ::strava {
 	# output this many in each leaderboard at most.
 	variable leaderboard_top_count 5
 
+	variable debug 0
+
 	# add a configuration option to set what channels are active for
 	# channel triggers.
 	settings_add_str "strava_enabled_channels" ""
@@ -690,6 +692,11 @@ proc ::strava::_club_activities_cb {token} {
 	if {$::strava::club_activity_id != 0} {
 		::strava::show $activities
 	}
+
+	if {$::strava::debug} {
+		irssi_print "_club_activities_cb: activities payload: $data"
+	}
+
 	# store highest we've seen now so we don't notify about the same activities
 	# next time.
 	set ::strava::club_activity_id [::strava::get_highest_id $activities]
