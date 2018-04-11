@@ -311,7 +311,11 @@ proc ::strava::duration {seconds} {
 proc ::strava::get_highest_id {dictionary} {
 	set id 0
 	foreach key $dictionary {
-		set key_id [dict get $key "id"]
+		if {![dict exists $key id]} {
+			error "dict is missing id: $key"
+		}
+
+		set key_id [dict get $key id]
 		if {$key_id > $id} {
 			set id $key_id
 		}
